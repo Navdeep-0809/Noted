@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Insights - Noted</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 2rem;
+      margin-bottom: 4rem;
+    }
+    .stat-card {
+      text-align: center;
+      padding: 3rem 2rem;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .stat-value {
+      font-size: 3.5rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      font-family: 'Outfit', sans-serif;
+      line-height: 1;
+    }
+    .stat-label {
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .notes-table-container {
+      overflow: hidden;
+    }
+    .notes-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .notes-table th {
+      text-align: left;
+      padding: 1.5rem 2rem;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .notes-table td {
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .note-row:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .update-time {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      color: var(--accent-primary);
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="gradient-text">Noted</span>
+    </div>
+    <div class="navbar-nav">
+      <a href="/notes" class="btn btn-outline" style="padding: 0.5rem 1.2rem;">← Dashboard</a>
+      <span class="text-muted"><strong style="color: var(--text-primary);"><%= username %></strong></span>
+      <a href="/logout" class="btn btn-outline" style="padding: 0.5rem 1.2rem;">Logout</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div style="margin-bottom: 3rem;">
+      <h1 class="gradient-text" style="font-size: 3rem; margin-bottom: 0.5rem;">Insights</h1>
+      <p class="text-muted" style="font-size: 1.1rem;">A snapshot of your collaborative productivity.</p>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="stats-grid">
+      <div class="glass-card stat-card">
+        <div class="stat-value" style="color: var(--success);"><%= stats.notesCreated %></div>
+        <div class="stat-label">Notes Created</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div class="stat-value" style="color: var(--danger);"><%= stats.notesDeleted %></div>
+        <div class="stat-label">Notes Deleted</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div class="stat-value" style="color: var(--accent-secondary);"><%= stats.totalCollaborators %></div>
+        <div class="stat-label">Total Collaborations</div>
+      </div>
+    </div>
+
+    <!-- Notes Activity Section -->
+    <div class="glass-card notes-table-container" style="padding: 0;">
+      <div style="padding: 2rem; border-bottom: 1px solid var(--glass-border);">
+        <h2 style="font-size: 1.5rem;">Recent Activity</h2>
+      </div>
+      <table class="notes-table">
+        <thead>
+          <tr>
+            <th>Note Title</th>
+            <th>Collaborators</th>
+            <th>Last Modified</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (notes.length === 0) { %>
+            <tr>
+              <td colspan="3" style="text-align: center; padding: 4rem;" class="text-muted">No active notes found.</td>
+            </tr>
+          <% } else { %>
+            <% notes.forEach(note => { %>
+              <tr class="note-row">
+                <td style="font-weight: 600; font-size: 1.1rem;"><%= note.title %></td>
+                <td>
+                  <span style="background: rgba(168, 85, 247, 0.1); color: #c084fc; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">
+                    👤 <%= note.collaborators ? note.collaborators.length : 0 %>
+                  </span>
+                </td>
+                <td class="update-time">
+                  <%= note.updatedAt.toLocaleString() %>
+                </td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</body>
+</html>

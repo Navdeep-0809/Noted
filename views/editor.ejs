@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= note.title %> - Editor</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <!-- Quill and Syntax Highlighting CSS -->
+  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="editor-container">
+
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="gradient-text">📝 <%= note.title %></span>
+    </div>
+    <div class="navbar-nav">
+      <span class="text-muted" style="font-size: 0.9rem;">Logged in as <strong style="color: var(--text-primary);"><%= username %></strong></span>
+      <button onclick="shareNote()" class="btn btn-primary" style="padding: 0.5rem 1rem; margin: 0 0.5rem;">👥 Share</button>
+      <a href="/notes" class="btn btn-outline" style="padding: 0.5rem 1rem;">← Back</a>
+    </div>
+  </nav>
+
+
+
+  <div class="collab-banner">
+    <span style="margin-right: 0.5rem;">✨</span> Real-time collaboration is active. Invite others to start co-editing!
+  </div>
+
+  <div class="editor-status" id="status" style="margin: 0 2rem; border-radius: 8px; margin-top: 1rem;">Connecting to real-time server...</div>
+
+  <!-- Quill Editor -->
+  <div id="editor"><%- note.content %></div>
+
+  <!-- Socket.io, Quill, and Highlight.js Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const noteId = '<%= note._id %>';
+    const userId = '<%= userId %>';
+    const socket = io();
+    const statusEl = document.getElementById('status');
+
+    async function shareNote() {
+      const username = prompt('Enter the username of the person you want to invite:');
+      if (!username) return;
+
+      try {
+        const response = await fetch(`/notes/${noteId}/share`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        });
+        const data = await response.json();
+        alert(data.message);
+      } catch (err) {
+        alert('Error sharing note');
+      }
+    }
+
+    // Initialize Quill
+    const quill = new Quill('#editor', {
+      theme: 'snow',
+      modules: {
+        syntax: true,
+        toolbar: [
+          [{ 'header': [1, 2, 3, false] }],
+          ['bold', 'italic', 'underline', 'strike'],
+          [{ 'color': [] }, { 'background': [] }],
+          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+          ['code-block', 'link'],
+          ['clean']
+        ]
+      },
+      placeholder: 'Start typing your note...'
+    });
+
+    socket.on('connect', () => {
+      statusEl.textContent = '● Connected';
+      statusEl.className = 'editor-status connected';
+      socket.emit('joinNote', { noteId, userId });
+    });
+
+    socket.on('disconnect', () => {
+      statusEl.textContent = '❌ Disconnected from real-time server';
+      statusEl.className = 'editor-status disconnected';
+    });
+
+    let typingTimer;
+    quill.on('text-change', (delta, oldDelta, source) => {
+      if (source === 'user') {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+          const content = quill.root.innerHTML;
+          socket.emit('editNote', { noteId, content });
+        }, 500);
+      }
+    });
+
+    socket.on('receiveUpdate', ({ content }) => {
+      // To avoid cursor jumping, only update if content is actually different
+      if (quill.root.innerHTML !== content) {
+        // We use innerHTML to sync rich text
+        quill.root.innerHTML = content;
+      }
+    });
+  </script>
+
+</body>
+</html>

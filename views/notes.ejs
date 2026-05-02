@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Notes - Noted</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="gradient-text">📝 Noted</span>
+    </div>
+    <div class="navbar-nav">
+      <span class="text-muted" style="margin-right: 1rem;">Hello, <strong style="color: var(--text-primary);"><%= username %></strong></span>
+      <a href="/activity" class="btn btn-outline" style="margin-right: 1rem; padding: 0.5rem 1rem;">📊 Activity</a>
+      <a href="/logout" class="btn btn-outline" style="padding: 0.5rem 1rem;">Logout</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- Dashboard Stats Section -->
+    <div class="glass-card" style="margin-bottom: 2rem; display: flex; justify-content: space-around; text-align: center; padding: 1.5rem;">
+      <div style="flex: 1;">
+        <div class="text-muted" style="font-size: 0.9rem;">Total Notes</div>
+        <div class="gradient-text" style="font-size: 2rem; font-weight: 700;"><%= stats.totalNotes %></div>
+      </div>
+    </div>
+
+    <div class="glass-card" style="margin-bottom: 2rem; padding: 1.5rem;">
+      <h2 style="margin-bottom: 1rem;">Create a Note</h2>
+      <form style="display: flex; gap: 1rem;" method="POST" action="/notes">
+        <input type="text" class="form-control" name="title" placeholder="Note title..." required style="margin-bottom: 0;">
+        <button type="submit" class="btn btn-primary" style="white-space: nowrap;">+ Create</button>
+      </form>
+    </div>
+
+    <!-- Notes List -->
+    <% if (notes.length === 0) { %>
+      <div class="empty-state glass-card">
+        <h3 style="margin-bottom: 0.5rem;">No notes yet</h3>
+        <p class="text-muted">Create your first note above to get started!</p>
+      </div>
+    <% } else { %>
+      <div class="notes-grid">
+        <% notes.forEach(note => { %>
+          <div class="glass-card note-card">
+            <div>
+              <div class="note-title">
+                <%= note.title %>
+                <% if (note.createdBy._id.toString() !== userId) { %>
+                  <span style="font-size: 0.65rem; background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 8px; border-radius: 6px; vertical-align: middle; margin-left: 0.5rem; letter-spacing: 0.5px;">SHARED</span>
+                <% } %>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 0.4rem; margin-top: 1rem;">
+                <div class="text-muted" style="font-size: 0.85rem;">
+                  Owner: <strong style="color: var(--text-primary);"><%= note.createdBy.username %></strong>
+                </div>
+                <div class="text-muted" style="font-size: 0.85rem;">Modified: <%= note.updatedAt.toLocaleDateString() %></div>
+              </div>
+            </div>
+            <div class="note-actions">
+              <a href="/notes/<%= note._id %>/edit" class="btn btn-primary" style="flex: 1; font-size: 0.85rem;">✍️ Open</a>
+              <a href="/notes/<%= note._id %>/whiteboard" class="btn btn-outline" style="flex: 1; font-size: 0.85rem;">🎨 Board</a>
+              <button class="btn btn-danger" style="flex: 0.4; padding: 0.5rem; font-size: 0.85rem;" onclick="deleteNote('<%= note._id %>', this)">🗑️</button>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+
+  <script>
+    async function deleteNote(id, btn) {
+      if (!confirm('Delete this note?')) return;
+
+      const response = await fetch('/notes/' + id, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        // Animate out before removing
+        const card = btn.closest('.note-card');
+        card.style.transform = 'scale(0.9)';
+        card.style.opacity = '0';
+        setTimeout(() => card.remove(), 300);
+      } else {
+        alert('Failed to delete note');
+      }
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Error - Noted</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="flex-center">
+  <div class="glass-card" style="text-align: center; max-width: 500px; padding: 3rem;">
+    <!--
+      EJS outputs the statusCode and message variables
+      passed from the errorHandler middleware.
+      <%= %> escapes HTML to prevent XSS attacks.
+    -->
+    <h1 style="font-size: 5rem; color: var(--danger); margin-bottom: 0.5rem;"><%= statusCode %></h1>
+    <h2 style="margin-bottom: 1rem;">Oops! Something went wrong</h2>
+    <p class="text-muted" style="margin-bottom: 2rem; font-size: 1.1rem;"><%= message %></p>
+    
+    <div style="display: flex; gap: 1rem; justify-content: center; flex-direction: column;">
+      <a href="/notes" class="btn btn-primary">Go to My Notes</a>
+      <a href="/" class="btn btn-outline">Go Home</a>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= note.title %> - Whiteboard</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body {
+      overflow: hidden;
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    #whiteboard-container {
+      flex: 1;
+      position: relative;
+      background: rgba(15, 23, 42, 0.5);
+      cursor: crosshair;
+    }
+    #whiteboard-container.grid {
+      background-image: 
+        linear-gradient(rgba(139, 92, 246, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(139, 92, 246, 0.1) 1px, transparent 1px);
+      background-size: 30px 30px;
+    }
+    #whiteboard-container.ruled {
+      background-image: 
+        linear-gradient(rgba(139, 92, 246, 0.15) 1px, transparent 1px);
+      background-size: 100% 30px;
+    }
+    canvas {
+      display: block;
+    }
+    .wb-toolbar {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.6rem 1.2rem;
+      z-index: 100;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 90vw;
+    }
+    .tool-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-right: 1px solid var(--border-subtle);
+      padding-right: 0.75rem;
+    }
+    .tool-group:last-child {
+      border-right: none;
+      padding-right: 0;
+    }
+    .color-btn {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .color-btn.active {
+      border-color: white;
+      transform: scale(1.3);
+    }
+    .size-slider {
+      width: 60px;
+    }
+    .tool-btn {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      padding: 0.4rem 0.6rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .tool-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-primary);
+    }
+    .tool-btn.active {
+      background: var(--accent-primary);
+      color: white;
+      border-color: var(--accent-primary);
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="gradient-text">🎨 <%= note.title %> - Whiteboard</span>
+    </div>
+    <div class="navbar-nav">
+      <span class="text-muted" style="font-size: 0.9rem;"><strong style="color: var(--text-primary);"><%= username %></strong></span>
+      <a href="/notes" class="btn btn-outline" style="padding: 0.5rem 1rem;">← Exit</a>
+    </div>
+  </nav>
+
+  <div id="whiteboard-container">
+    <div class="wb-toolbar glass-card">
+      <!-- Mode Group -->
+      <div class="tool-group">
+        <button id="pen-tool" class="tool-btn active" title="Pen">✏️</button>
+        <button id="eraser-tool" class="tool-btn" title="Eraser">🧽</button>
+        <button id="rect-tool" class="tool-btn" title="Rectangle">⬜</button>
+        <button id="circle-tool" class="tool-btn" title="Circle">⭕</button>
+      </div>
+      
+      <!-- Color Group -->
+      <div class="tool-group">
+        <div class="color-btn active" data-color="#8b5cf6" style="background: #8b5cf6;"></div>
+        <div class="color-btn" data-color="#3b82f6" style="background: #3b82f6;"></div>
+        <div class="color-btn" data-color="#10b981" style="background: #10b981;"></div>
+        <div class="color-btn" data-color="#ef4444" style="background: #ef4444;"></div>
+        <div class="color-btn" data-color="#f8fafc" style="background: #f8fafc;"></div>
+      </div>
+
+      <!-- Settings -->
+      <div class="tool-group">
+        <input type="range" min="1" max="20" value="5" class="size-slider" id="size-slider" title="Brush Size">
+      </div>
+
+      <!-- Action Group -->
+      <div class="tool-group">
+        <button id="undo-btn" class="tool-btn" title="Undo">↩️</button>
+        <button id="redo-btn" class="tool-btn" title="Redo">↪️</button>
+        <button id="grid-toggle" class="tool-btn" title="Toggle Grid">▦</button>
+        <button id="download-btn" class="tool-btn" title="Export as PNG">💾</button>
+      </div>
+
+      <div class="tool-group">
+        <button id="clear-btn" class="btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">🗑️</button>
+      </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const noteId = '<%= note._id %>';
+    const userId = '<%= userId %>';
+    const socket = io();
+    
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('whiteboard-container');
+    
+    let drawing = false;
+    let current = {
+      color: '#8b5cf6',
+      size: 5,
+      mode: 'pen'
+    };
+    
+    // Ensure we have a valid array even if data is missing or corrupted
+    let paths = [];
+    try {
+      // Safely inject the JSON string from the server. 
+      // Since it's already a JSON string, we can output it directly as a JS literal.
+      paths = <%- note.whiteboardData || '[]' %>;
+      if (!Array.isArray(paths)) paths = []; 
+    } catch (e) {
+      console.error('Error parsing whiteboard data:', e);
+      paths = [];
+    }
+    let redoStack = [];
+
+    function resize() {
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      redraw();
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function redraw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      paths.forEach(path => drawPath(path));
+    }
+
+    function drawPath(path) {
+      ctx.beginPath();
+      ctx.strokeStyle = path.color;
+      ctx.lineWidth = path.size;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      if (path.mode === 'eraser') {
+        ctx.globalCompositeOperation = 'destination-out';
+      } else {
+        ctx.globalCompositeOperation = 'source-over';
+      }
+
+      if (path.type === 'rect') {
+        if (!path.points || path.points.length < 1) return;
+        const p1 = path.points[0];
+        const p2 = path.points[path.points.length - 1] || p1;
+        ctx.strokeRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+      } else if (path.type === 'circle') {
+        if (!path.points || path.points.length < 1) return;
+        const p1 = path.points[0];
+        const p2 = path.points[path.points.length - 1] || p1;
+        const radius = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        ctx.arc(p1.x, p1.y, radius, 0, 2 * Math.PI);
+        ctx.stroke();
+      } else {
+        if (!path.points || path.points.length < 2) return;
+        ctx.moveTo(path.points[0].x, path.points[0].y);
+        for (let i = 1; i < path.points.length; i++) {
+          ctx.lineTo(path.points[i].x, path.points[i].y);
+        }
+        ctx.stroke();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    let currentPath = null;
+
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+
+    function startDrawing(e) {
+      drawing = true;
+      currentPath = {
+        color: current.mode === 'eraser' ? 'rgba(0,0,0,1)' : current.color,
+        size: current.size,
+        mode: current.mode,
+        type: (current.mode === 'rect' || current.mode === 'circle') ? current.mode : 'free',
+        points: [{ x: e.offsetX, y: e.offsetY }]
+      };
+    }
+
+    function draw(e) {
+      if (!drawing) return;
+      
+      const point = { x: e.offsetX, y: e.offsetY };
+      
+      if (currentPath.type === 'free') {
+        currentPath.points.push(point);
+      } else {
+        // For shapes, we only need start and end points
+        currentPath.points[1] = point;
+      }
+      
+      redraw(); // Redraw everything to show preview
+      drawPath(currentPath); // Show preview of current stroke
+      
+      // Emit to others if it's freehand (for real-time effect)
+      if (currentPath.type === 'free') {
+        socket.emit('draw', { noteId, drawingData: currentPath });
+      }
+    }
+
+    function stopDrawing() {
+      if (!drawing) return;
+      drawing = false;
+      paths.push(currentPath);
+      redoStack = []; // Clear redo on new action
+      
+      socket.emit('saveWhiteboard', { noteId, fullData: paths });
+      if (currentPath.type !== 'free') {
+        socket.emit('draw', { noteId, drawingData: currentPath });
+      }
+      currentPath = null;
+      redraw();
+    }
+
+    // Socket Events
+    socket.on('connect', () => {
+      socket.emit('joinNote', { noteId, userId });
+    });
+
+    socket.on('draw', (remotePath) => {
+      paths.push(remotePath);
+      drawPath(remotePath);
+    });
+
+    socket.on('clearWhiteboard', () => {
+      paths = [];
+      redraw();
+    });
+
+    // Tool Handlers
+    function setMode(mode, btnId) {
+      current.mode = mode;
+      document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(btnId).classList.add('active');
+    }
+
+    document.getElementById('pen-tool').addEventListener('click', () => setMode('pen', 'pen-tool'));
+    document.getElementById('eraser-tool').addEventListener('click', () => setMode('eraser', 'eraser-tool'));
+    document.getElementById('rect-tool').addEventListener('click', () => setMode('rect', 'rect-tool'));
+    document.getElementById('circle-tool').addEventListener('click', () => setMode('circle', 'circle-tool'));
+
+    document.getElementById('size-slider').addEventListener('input', (e) => current.size = e.target.value);
+
+    document.querySelectorAll('.color-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelector('.color-btn.active').classList.remove('active');
+        btn.classList.add('active');
+        current.color = btn.dataset.color;
+        if (current.mode === 'eraser') setMode('pen', 'pen-tool');
+      });
+    });
+
+    document.getElementById('undo-btn').addEventListener('click', () => {
+      if (paths.length > 0) {
+        redoStack.push(paths.pop());
+        redraw();
+        socket.emit('saveWhiteboard', { noteId, fullData: paths });
+        // Optional: emit an "undo" event to others? For now, simple local undo.
+      }
+    });
+
+    document.getElementById('redo-btn').addEventListener('click', () => {
+      if (redoStack.length > 0) {
+        paths.push(redoStack.pop());
+        redraw();
+        socket.emit('saveWhiteboard', { noteId, fullData: paths });
+      }
+    });
+
+    let bgMode = 'none';
+    document.getElementById('grid-toggle').addEventListener('click', () => {
+      const container = document.getElementById('whiteboard-container');
+      if (bgMode === 'none') {
+        container.classList.add('grid');
+        bgMode = 'grid';
+      } else if (bgMode === 'grid') {
+        container.classList.remove('grid');
+        container.classList.add('ruled');
+        bgMode = 'ruled';
+      } else {
+        container.classList.remove('ruled');
+        bgMode = 'none';
+      }
+    });
+
+    document.getElementById('clear-btn').addEventListener('click', () => {
+      if (confirm('Clear everything?')) {
+        paths = [];
+        redraw();
+        socket.emit('clearWhiteboard', noteId);
+      }
+    });
+
+    document.getElementById('download-btn').addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = `whiteboard-${noteId}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    });
+  </script>
+</body>
+</html>

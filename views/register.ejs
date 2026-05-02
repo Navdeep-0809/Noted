@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - Noted</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="flex-center">
+  <div class="glass-card" style="width: 100%; max-width: 400px; padding: 3rem 2rem;">
+    <h2 class="gradient-text" style="margin-bottom: 2rem; text-align: center; font-size: 2.5rem;">Join Noted</h2>
+
+    <% if (error) { %>
+      <div class="alert alert-error"><%= error %></div>
+    <% } %>
+
+    <form method="POST" action="/register">
+      <div class="form-group" style="margin-bottom: 1.5rem;">
+        <label class="form-label" style="margin-bottom: 0.5rem; display: block; font-weight: 500;">Username</label>
+        <input type="text" class="form-control" name="username" placeholder="Choose a username" required>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 2rem;">
+        <label class="form-label" style="margin-bottom: 0.5rem; display: block; font-weight: 500;">Password</label>
+        <input type="password" class="form-control" name="password" placeholder="Choose a password" required>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%;">Create Account</button>
+    </form>
+    
+    <p class="text-muted" style="text-align: center; margin-top: 2rem;">
+      Already have an account? <a href="/login" style="font-weight: 700; color: var(--accent-primary);">Login</a>
+    </p>
+  </div>
+</body>
+</html>
